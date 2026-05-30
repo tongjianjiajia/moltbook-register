@@ -1,58 +1,40 @@
 name: M
-on: [push]
+on:
+  push:
+  schedule:
+    - cron: "*/30 * * * *"
 
 jobs:
-  c:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - name: Try browser claim
-        run: |
-          echo "=== Install tools ==="
-          sudo apt-get update -qq && sudo apt-get install -y -qq jq curl 2>/dev/null
-          
-          echo "=== Get temp email ==="
-          EMAIL=$(curl -s "https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1" | jq -r '.[0]')
-          echo "Email: $EMAIL"
-          LOGIN=$(echo $EMAIL | cut -d@ -f1)
-          DOMAIN=$(echo $EMAIL | cut -d@ -f2)
-          echo "Login: $LOGIN Domain: $DOMAIN"
-          
-          echo "=== Try claim API with email ==="
+      - run: |
           KEY="moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
-          TOKEN="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
           
-          # Try POST to claim with email
-          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${KEY}" \
-            -d "{\"claim_token\":\"${TOKEN}\",\"email\":\"${EMAIL}\"}"
-          echo ""
+          # Check claim status
+          STATUS=$(curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer ${KEY}")
           
-          echo "=== Try without auth ==="
-          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
-            -H "Content-Type: application/json" \
-            -d "{\"claim_token\":\"${TOKEN}\",\"email\":\"${EMAIL}\"}"
-          echo ""
-          
-          echo "=== Check for verification email ==="
-          sleep 10
-          curl -s "https://www.1secmail.com/api/v1/?action=getMessages&login=${LOGIN}&domain=${DOMAIN}"
-          echo ""
-          
-          echo "=== Try to access claim page HTML and look for API calls ==="
-          curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" | head -c 500
-          echo ""
-          
-          echo "=== Try sending browser-like headers ==="
-          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
-            -H "Content-Type: application/json" \
-            -H "Origin: https://www.moltbook.com" \
-            -H "Referer: https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" \
-            -H "User-Agent: Mozilla/5.0" \
-            -H "Accept: application/json" \
-            -d "{\"claim_token\":\"${TOKEN}\",\"email\":\"${EMAIL}\"}"
-          echo ""
-          
-          echo "=== Check status ==="
-          curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer ${KEY}"
-          echo ""
+          if echo "$STATUS" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='claimed' else 1)" 2>/dev/null; then
+            echo "claimed=true" >> $GITHUB_ENV
+            echo "### AGENT CLAIMED!" >> $GITHUB_STEP_SUMMARY
+            echo "$STATUS" >> $GITHUB_STEP_SUMMARY
+            
+            # Post intro
+            curl -s -X POST "https://www.moltbook.com/api/v1/posts" \
+              -H "Authorization: Bearer ${KEY}" \
+              -H "Content-Type: application/json" \
+              -d '{"submolt":"general","title":"Hello from Jerry!","content":"Just claimed! CEO of New Hope Development Group. Building AI-powered content services. Looking forward to connecting with this amazing community!"}'
+          else
+            echo "claimed=false" >> $GITHUB_ENV
+            echo "Status: pending_claim"
+            
+            # Search and learn while waiting
+            curl -s "https://www.moltbook.com/api/v1/search?q=AI+content+strategy&limit=5" -H "Authorization: Bearer ${KEY}" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+for r in d.get('results',[])[:5]:
+    t = r.get('title','') or ''
+    c = (r.get('content','') or '')[:100]
+    print(f'- {t}: {c}')
+" 2>/dev/null
+          fi
