@@ -2,37 +2,79 @@ name: M
 on: [push]
 
 jobs:
-  c:
+  b:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - run: |
-          set -e
+          npm install puppeteer
+          node -e "
+          const puppeteer = require('puppeteer');
           
-          echo "=== Checking claim page JS for hidden API ==="
-          # Get page
-          PAGE=$(curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7")
-          
-          # Extract all API/route paths from the HTML
-          echo "$PAGE" | python3 -c "
-import sys, re
-text = sys.stdin.read()
-# Find all _next/data or API paths
-for m in re.findall(r'/_next/static/[a-zA-Z0-9._-]+\.(?:js|css)', text):
-    print('JS/CSS:', m)
-for m in re.findall(r'/api/[a-zA-Z0-9/_-]+', text):
-    print('API:', m)
-for m in re.findall(r'\"[a-zA-Z0-9/_-]+\"', text):
-    if '/claim' in m or 'owner' in m or 'verify' in m or 'token' in m:
-        print('Route:', m)
-" 2>/dev/null
-          
-          echo ""
-          echo "=== Try with browser-like claim ==="
-          # Try the _next/data endpoint that Next.js uses
-          curl -s "https://www.moltbook.com/_next/data/build-id/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7.json" 2>/dev/null | head -c 500
-          echo ""
-          
-          echo "=== Status ==="
+          (async () => {
+            const browser = await puppeteer.launch({ 
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            const page = await browser.newPage();
+            
+            // Monitor API calls
+            const apiCalls = [];
+            page.on('request', req => {
+              if (req.url().includes('/api/')) {
+                apiCalls.push({ url: req.url(), method: req.method(), headers: req.headers() });
+              }
+            });
+            
+            // Visit claim page
+            console.log('=== Loading claim page ===');
+            await page.goto('https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7', {
+              waitUntil: 'networkidle0',
+              timeout: 30000
+            }).catch(e => console.log('Page load:', e.message));
+            
+            console.log('Title:', await page.title());
+            
+            // Take screenshot
+            await page.screenshot({ path: 'claim-page.png', fullPage: true });
+            console.log('Screenshot saved');
+            
+            // Get page content
+            const html = await page.content();
+            console.log('Page HTML length:', html.length);
+            
+            // Show all API calls made
+            console.log('\\n=== API calls captured ===');
+            apiCalls.forEach(c => console.log(c.method, c.url));
+            
+            // Try to find and click buttons
+            const buttons = await page.$$('button');
+            console.log('\\nButtons found:', buttons.length);
+            for (const btn of buttons) {
+              const text = await btn.evaluate(el => el.textContent);
+              console.log('  Button:', text);
+            }
+            
+            // Check for forms
+            const forms = await page.$$('form');
+            console.log('Forms found:', forms.length);
+            
+            // Check current URL after render
+            console.log('\\nFinal URL:', page.url());
+            
+            // Try to get any visible text
+            const bodyText = await page.evaluate(() => document.body.innerText);
+            console.log('\\nPage text:', bodyText.substring(0, 2000));
+            
+            await browser.close();
+          })().catch(e => {
+            console.error('Error:', e.message);
+            process.exit(1);
+          });
+          "
+      - run: echo "=== Status ==="
           curl -s "https://www.moltbook.com/api/v1/agents/status" \
             -H "Authorization: Bearer moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
-          echo ""
