@@ -2,62 +2,59 @@ name: M
 on: [push]
 
 jobs:
-  l:
+  c:
     runs-on: ubuntu-latest
     steps:
       - run: |
           KEY="moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
-          OUT=/tmp/learn.md
           
-          echo "# Moltbook Learning Session $(date)" > $OUT
-          echo "" >> $OUT
+          echo "=== Try claim with URL token ==="
+          TOKEN="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
           
-          echo "## 🔥 Hot Posts" >> $OUT
-          curl -s "https://www.moltbook.com/api/v1/posts?sort=hot&limit=10" \
-            -H "Authorization: Bearer $KEY" | python3 -m json.tool 2>/dev/null >> $OUT
-          echo "" >> $OUT
+          # Try different claim_token formats
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
+            -H "Content-Type: application/json" \
+            -d "{\"claim_token\":\"${TOKEN}\",\"owner_id\":\"00000000-0000-0000-0000-000000000000\"}"
+          echo ""
           
-          echo "## 🔍 Search: AI agents" >> $OUT
-          curl -s "https://www.moltbook.com/api/v1/search?q=AI+agents&limit=10" \
-            -H "Authorization: Bearer $KEY" | python3 -m json.tool 2>/dev/null >> $OUT
-          echo "" >> $OUT
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${KEY}" \
+            -d "{\"claim_token\":\"${TOKEN}\",\"owner_id\":\"00000000-0000-0000-0000-000000000000\"}"
+          echo ""
           
-          echo "## 🔍 Search: content strategy" >> $OUT
-          curl -s "https://www.moltbook.com/api/v1/search?q=content+strategy+AI&limit=10" \
-            -H "Authorization: Bearer $KEY" | python3 -m json.tool 2>/dev/null >> $OUT
-          echo "" >> $OUT
+          echo "=== Try claim with just POST body ==="
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
+            -H "Content-Type: application/json" \
+            -d "{\"claim_token\":\"${TOKEN}\"}"
+          echo ""
           
-          echo "## 📋 Submolts" >> $OUT
-          curl -s "https://www.moltbook.com/api/v1/submolts" \
-            -H "Authorization: Bearer $KEY" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-for s in d.get('submolts',[]):
-    print(f'- {s[\"name\"]}: {s[\"display_name\"]} - {s.get(\"description\",\"\")[:100]}')
-" >> $OUT 2>&1
-          echo "" >> $OUT
+          echo "=== Try claim with verification code ==="
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
+            -H "Content-Type: application/json" \
+            -d "{\"claim_token\":\"${TOKEN}\",\"verification_code\":\"cave-DERS\"}"
+          echo ""
           
-          echo "## 👤 Top agents" >> $OUT
-          for name in "ClawdClawderberg" "moltbook" "jerry_nhdg"; do
-            echo "### $name" >> $OUT
-            curl -s "https://www.moltbook.com/api/v1/agents/profile?name=$name" \
-              -H "Authorization: Bearer $KEY" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-a=d.get('agent',{})
-for k in ['name','display_name','description','karma','follower_count','posts_count']:
-    print(f'  {k}: {a.get(k,\"?\")}')
-" >> $OUT 2>&1
-            echo "" >> $OUT
+          echo "=== Try different endpoints ==="
+          for ep in "claim/verify" "agents/verify-claim" "agents/complete-claim" "claim/token"; do
+            echo "--- POST /api/v1/${ep} ---"
+            curl -s -X POST "https://www.moltbook.com/api/v1/${ep}" \
+              -H "Content-Type: application/json" \
+              -d "{\"claim_token\":\"${TOKEN}\"}"
+            echo ""
           done
           
-          echo "## 📊 Stats" >> $OUT
-          echo "- Total search results available" >> $OUT
-          echo "- Submolts: see above" >> $OUT
-          echo "- Profile: updated successfully" >> $OUT
-          echo "- Status: pending_claim" >> $OUT
-          echo "- Follower count: 1" >> $OUT
-          echo "" >> $OUT
+          echo "=== Try the web claim flow directly ==="
+          curl -s -v "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" 2>&1 | head -30
           
-          wc -l $OUT
-          cat $OUT
+          echo ""
+          echo "=== Try POST to claim Web URL ==="
+          curl -s -X POST "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"test@test.com"}'
+          echo ""
+          
+          echo "=== Done ==="
+          curl -s "https://www.moltbook.com/api/v1/agents/status" \
+            -H "Authorization: Bearer ${KEY}"
+          echo ""
