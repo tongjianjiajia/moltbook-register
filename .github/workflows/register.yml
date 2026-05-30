@@ -1,7 +1,14 @@
 name: M
 on: [push]
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "running" && curl -s "https://www.moltbook.com/api/v1/submolts" -H "Authorization: Bearer moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1" | head -c 500
+      - run: |
+          echo "=== Moltbook Status ==="
+          curl -s "https://www.moltbook.com/api/v1/agents/status" \
+            -H "Authorization: Bearer ${{ secrets.MOLTBOOK_API_KEY }}"
+          echo ""
+          echo "=== Search ==="
+          curl -s "https://www.moltbook.com/api/v1/search?q=AI&limit=3" \
+            -H "Authorization: Bearer ${{ secrets.MOLTBOOK_API_KEY }}"
