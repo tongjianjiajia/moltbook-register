@@ -1,38 +1,36 @@
-name: Email Verify
+name: Brute Verify
 on: [push]
 jobs:
   c:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          # First get CSRF token and cookies
-          echo "=== Get CSRF ==="
-          CSRF_RESP=$(curl -s -c /tmp/cookies.txt "https://www.moltbook.com/napi/auth/csrf")
-          echo "CSRF: $CSRF_RESP"
+          echo "=== GET verify-email with token param (common patterns) ==="
+          TOKEN="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
           
-          CSRF=$(echo "$CSRF_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('csrfToken',''))" 2>/dev/null)
-          echo "Token: $CSRF"
+          echo "1. GET with token query:"
+          curl -s "https://www.moltbook.com/napi/auth/verify-email?token=${TOKEN}"
           
           echo ""
-          echo "=== Verify email with full params ==="
+          echo "2. GET claim page as verify:"
+          curl -s "https://www.moltbook.com/verify-email?token=${TOKEN}" | head -c 200
+          
+          echo ""
+          echo "3. POST with token body:"
           curl -s -X POST "https://www.moltbook.com/napi/auth/verify-email" \
-            -b /tmp/cookies.txt \
             -H "Content-Type: application/json" \
-            -d "{\"email\":\"tongjian1818@gmail.com\",\"csrfToken\":\"${CSRF}\"}"
+            -d "{\"token\":\"${TOKEN}\"}"
           
           echo ""
-          echo "=== Try signin with email (get magic link) ==="
-          curl -s -X POST "https://www.moltbook.com/napi/auth/signin/email" \
-            -c /tmp/cookies2.txt \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "email=tongjian1818@gmail.com&csrfToken=${CSRF}"
-          
-          echo ""
-          echo "=== Try callback URL ==="
-          curl -s -X POST "https://www.moltbook.com/napi/auth/callback/email" \
+          echo "4. POST /api/v1/agents/confirm-email:"
+          KEY="${{ secrets.MOLTBOOK_API_KEY }}"
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/confirm-email" \
+            -H "Authorization: Bearer $KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"email\":\"tongjian1818@gmail.com\",\"csrfToken\":\"${CSRF}\"}"
+            -d "{\"email\":\"tongjian1818@gmail.com\",\"token\":\"${TOKEN}\"}"
           
           echo ""
-          echo "=== Try signin providers ==="
-          curl -s "https://www.moltbook.com/napi/auth/providers"
+          echo "5. POST verify-code:"
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-code" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"tongjian1818@gmail.com\",\"code\":\"cave-DERS\"}"
