@@ -4,63 +4,38 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
-      - run: pip install playwright && python3 -m playwright install chromium 2>&1 | tail -3
       - run: |
-          python3 -c "
-import asyncio
-from playwright.async_api import async_playwright
+          curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" | python3 -c "
+import sys, re
+html = sys.stdin.read()
+bd = re.search(r'buildId[\": ]+([a-zA-Z0-9]+)', html)
+build_id = bd.group(1) if bd else 'latest'
+print('BUILD:', build_id)
+
+# Find JS files
+js_files = re.findall(r'/_next/static/chunks/([a-zA-Z0-9._-]+\.js)', html)
+print('JS_FILES:', len(js_files))
+
+# Extract API paths from the JS files
+import urllib.request
 import json
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        api_log = []
-        page.on('request', lambda req: api_log.append({'url': req.url[:200], 'method': req.method, 'type': req.resource_type}) if '/api/' in req.url else None)
-        
-        await page.goto('https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7', wait_until='networkidle', timeout=30000)
-        
-        print('Title:', page.title())
-        
-        # Get visible text
-        text = await page.inner_text('body')
-        print('Body text:', text[:1000])
-        
-        # Check for input fields
-        inputs = await page.query_selector_all('input')
-        print('Inputs:', len(inputs))
-        for inp in inputs:
-            placeholder = await inp.get_attribute('placeholder') or ''
-            type_attr = await inp.get_attribute('type') or ''
-            name = await inp.get_attribute('name') or ''
-            print(f'  Input: type={type_attr} name={name} placeholder={placeholder}')
-        
-        # Check buttons
-        btns = await page.query_selector_all('button')
-        print('Buttons:', len(btns))
-        for btn in btns:
-            txt = (await btn.inner_text())[:60]
-            print(f'  Button: {txt}')
-        
-        # Try to fill email if there's an input field
-        for inp in inputs:
-            type_attr = await inp.get_attribute('type') or ''
-            if type_attr == 'email' or 'email' in (await inp.get_attribute('name') or '').lower():
-                await inp.fill('2864663178@qq.com')
-                print('Filled email')
-                # Click first button
-                if btns:
-                    await btns[0].click()
-                    await page.wait_for_timeout(2000)
-                    new_text = await page.inner_text('body')
-                    print('After click:', new_text[:500])
-                break
-        
-        print('API calls made:')
-        for a in api_log:
-            print(f'  {a[\"method\"]} {a[\"url\"]}')
-        
-        await browser.close()
+endpoints = set()
+for js in js_files[:10]:
+    url = f'https://www.moltbook.com/_next/static/chunks/{js}'
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            content = resp.read().decode('utf-8', errors='replace')
+            for m in re.findall(r'[\"'"'"'](/api/v1/[a-zA-Z0-9/_-]+)[\"'"'"']', content):
+                endpoints.add(m)
+            for m in re.findall(r'[\"'"'"'](/auth/[a-zA-Z0-9/_-]+)[\"'"'"']', content):
+                endpoints.add(m)
+            for m in re.findall(r'[\"'"'"'](/claim/[a-zA-Z0-9/_-]+)[\"'"'"']', content):
+                endpoints.add(m)
+    except:
+        pass
 
-asyncio.run(main())
-" 2>&1
+print('ENDPOINTS:')
+for ep in sorted(endpoints):
+    print('  ' + ep)
+"
