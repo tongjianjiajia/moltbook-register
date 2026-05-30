@@ -5,36 +5,15 @@ jobs:
   c:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          set -eo pipefail
-          
-          KEY="moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
-          T="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
-          
-          echo "=== Phase 1: Scan claim page for hidden API endpoints ==="
-          PAGE=$(curl -s "https://www.moltbook.com/claim/${T}")
-          echo "$PAGE" | python3 -c "
-import sys, re
-for m in re.findall(r'/api/[a-zA-Z0-9/_-]+', sys.stdin.read()):
-    print('API:', m)
-" 
-          
-          echo "=== Phase 2: Try all possible claim endpoints ==="
-          for ep in claim claim/verify claim/email agents/claim agents/verify-email auth/claim; do
-            for m in POST GET PUT; do
-              R=$(curl -s -o /dev/null -w '%{http_code}' -X $m "https://www.moltbook.com/api/v1/$ep" \
-                -H "Content-Type: application/json" \
-                -d "{\"claim_token\":\"${T}\"}" 2>/dev/null)
-              if [ "$R" != "404" ] && [ "$R" != "405" ]; then
-                echo "  $m /api/v1/$ep -> $R"
-                curl -s -X $m "https://www.moltbook.com/api/v1/$ep" \
-                  -H "Content-Type: application/json" \
-                  -d "{\"claim_token\":\"${T}\"}" 2>/dev/null | head -c 200
-                echo ""
-              fi
-            done
-          done
-          
-          echo "=== Phase 3: Deep status ==="
-          curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer $KEY"
+      - name: Probe
+        run: |
+          echo "=== Moltbook probe ==="
+          curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" 2>/dev/null | head -c 1000
           echo ""
+          echo "=== Status ==="
+          curl -s "https://www.moltbook.com/api/v1/agents/status" \
+            -H "Authorization: Bearer moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
+          echo ""
+      - name: Cleanup
+        if: always()
+        run: echo "done"
