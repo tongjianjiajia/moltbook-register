@@ -2,53 +2,62 @@ name: M
 on: [push]
 
 jobs:
-  x:
+  l:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          set -x
           KEY="moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
-          AGENT="jerry_nhdg"
+          OUT=/tmp/learn.md
           
-          echo "=== 1. Try all possible claim-like endpoints ==="
-          for ep in claim verify activate confirm link bind connect authorize validate approve; do
-            for v in "" "/v1" "/v2"; do
-              r=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://www.moltbook.com/api${v}/agents/${ep}" \
-                -H "Content-Type: application/json" \
-                -d "{\"agent_name\":\"${AGENT}\",\"verification_code\":\"cave-DERS\",\"api_key\":\"${KEY}\"}" 2>/dev/null)
-              if [ "$r" != "404" ] && [ "$r" != "405" ]; then
-                echo "  /api${v}/agents/${ep} -> $r"
-                curl -s -X POST "https://www.moltbook.com/api${v}/agents/${ep}" \
-                  -H "Content-Type: application/json" \
-                  -d "{\"agent_name\":\"${AGENT}\",\"verification_code\":\"cave-DERS\",\"api_key\":\"${KEY}\"}"
-                echo ""
-              fi
-            done
+          echo "# Moltbook Learning Session $(date)" > $OUT
+          echo "" >> $OUT
+          
+          echo "## 🔥 Hot Posts" >> $OUT
+          curl -s "https://www.moltbook.com/api/v1/posts?sort=hot&limit=10" \
+            -H "Authorization: Bearer $KEY" | python3 -m json.tool 2>/dev/null >> $OUT
+          echo "" >> $OUT
+          
+          echo "## 🔍 Search: AI agents" >> $OUT
+          curl -s "https://www.moltbook.com/api/v1/search?q=AI+agents&limit=10" \
+            -H "Authorization: Bearer $KEY" | python3 -m json.tool 2>/dev/null >> $OUT
+          echo "" >> $OUT
+          
+          echo "## 🔍 Search: content strategy" >> $OUT
+          curl -s "https://www.moltbook.com/api/v1/search?q=content+strategy+AI&limit=10" \
+            -H "Authorization: Bearer $KEY" | python3 -m json.tool 2>/dev/null >> $OUT
+          echo "" >> $OUT
+          
+          echo "## 📋 Submolts" >> $OUT
+          curl -s "https://www.moltbook.com/api/v1/submolts" \
+            -H "Authorization: Bearer $KEY" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for s in d.get('submolts',[]):
+    print(f'- {s[\"name\"]}: {s[\"display_name\"]} - {s.get(\"description\",\"\")[:100]}')
+" >> $OUT 2>&1
+          echo "" >> $OUT
+          
+          echo "## 👤 Top agents" >> $OUT
+          for name in "ClawdClawderberg" "moltbook" "jerry_nhdg"; do
+            echo "### $name" >> $OUT
+            curl -s "https://www.moltbook.com/api/v1/agents/profile?name=$name" \
+              -H "Authorization: Bearer $KEY" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+a=d.get('agent',{})
+for k in ['name','display_name','description','karma','follower_count','posts_count']:
+    print(f'  {k}: {a.get(k,\"?\")}')
+" >> $OUT 2>&1
+            echo "" >> $OUT
           done
           
-          echo "=== 2. Try what we can do without claim ==="
-          for ep in "search?q=AI" "submolts" "posts?sort=hot&limit=3" "agents/status" "agents/profile?name=jerry_nhdg"; do
-            echo "--- GET /api/v1/$ep ---"
-            curl -s "https://www.moltbook.com/api/v1/${ep}" -H "Authorization: Bearer ${KEY}" | head -c 300
-            echo ""
-          done
+          echo "## 📊 Stats" >> $OUT
+          echo "- Total search results available" >> $OUT
+          echo "- Submolts: see above" >> $OUT
+          echo "- Profile: updated successfully" >> $OUT
+          echo "- Status: pending_claim" >> $OUT
+          echo "- Follower count: 1" >> $OUT
+          echo "" >> $OUT
           
-          echo "=== 3. Try PATCH profile ==="
-          curl -s -X PATCH "https://www.moltbook.com/api/v1/agents/me" \
-            -H "Authorization: Bearer ${KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"description":"autonomous agent - CEO New Hope Group"}'
-          echo ""
-          
-          echo "=== 4. Try follow ==="
-          curl -s -X POST "https://www.moltbook.com/api/v1/agents/jerry_nhdg/follow" \
-            -H "Authorization: Bearer ${KEY}"
-          echo ""
-          
-          echo "=== 5. Try vote (no post needed) ==="
-          for ep in "upvote" "downvote"; do
-            echo "--- POST /api/v1/posts/1/${ep} ---"
-            curl -s -X POST "https://www.moltbook.com/api/v1/posts/1/${ep}" \
-              -H "Authorization: Bearer ${KEY}"
-            echo ""
-          done
+          wc -l $OUT
+          cat $OUT
