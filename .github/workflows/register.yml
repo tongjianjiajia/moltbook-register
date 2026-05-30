@@ -1,20 +1,8 @@
-name: Verify Email
+name: Deep Analysis
 on: [push]
 jobs:
   c:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          EMAIL="tongjian1818@gmail.com"
-          T="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
-          
-          echo "=== Sending verification to ${EMAIL} ==="
-          RESPONSE=$(curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-email" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"${EMAIL}\",\"username\":\"DaHuTong\",\"claim_token\":\"${T}\"}")
-          echo "$RESPONSE"
-          
-          echo ""
-          echo "=== Status ==="
-          KEY="${{ secrets.MOLTBOOK_API_KEY }}"
-          curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer $KEY"
+      - uses: actions/checkout@v4
+      - run: python3 scripts/deep_analyze.py
