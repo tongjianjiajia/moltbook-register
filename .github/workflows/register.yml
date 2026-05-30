@@ -6,14 +6,64 @@ jobs:
     steps:
       - run: |
           KEY="${{ secrets.MOLTBOOK_API_KEY }}"
-          EMAIL="2864663178@qq.com"
           T="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
           
-          echo "=== Send verification email ==="
-          curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-email" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"${EMAIL}\",\"username\":\"DaHu_Jerry\",\"claim_token\":\"${T}\"}"
-          echo ""
+          echo "=== 1. Get temp email ==="
+          EMAIL=$(curl -s "https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1" | python3 -c "import sys,json; print(json.load(sys.stdin)[0])")
+          LOGIN=$(echo $EMAIL | cut -d@ -f1)
+          DOMAIN=$(echo $EMAIL | cut -d@ -f2)
+          echo "EMAIL=$EMAIL"
           
-          echo "=== Status ==="
+          echo "=== 2. Send verification ==="
+          RESPONSE=$(curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-email" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${EMAIL}\",\"username\":\"JerryOwner\",\"claim_token\":\"${T}\"}")
+          echo "$RESPONSE"
+          
+          if echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('success') else 1)" 2>/dev/null; then
+            echo "=== 3. Wait for email ==="
+            sleep 20
+            
+            for i in 1 2 3 4 5; do
+              echo "Checking inbox (attempt $i)..."
+              MSGS=$(curl -s "https://www.1secmail.com/api/v1/?action=getMessages&login=${LOGIN}&domain=${DOMAIN}")
+              echo "Messages: $MSGS"
+              
+              COUNT=$(echo "$MSGS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))" 2>/dev/null)
+              if [ "$COUNT" -gt "0" ]; then
+                echo "EMAIL RECEIVED!"
+                
+                # Get the first message
+                ID=$(echo "$MSGS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('id',0))" 2>/dev/null)
+                echo "Message ID: $ID"
+                
+                # Read the message content
+                MSG=$(curl -s "https://www.1secmail.com/api/v1/?action=readMessage&login=${LOGIN}&domain=${DOMAIN}&id=${ID}")
+                echo "Full message: $MSG" | head -c 2000
+                
+                # Extract verification link from email body
+                LINK=$(echo "$MSG" | python3 -c "
+import sys, json, re
+d = json.load(sys.stdin)
+body = d.get('htmlBody', '') or d.get('textBody', '')
+# Find moltbook verification link
+for m in re.findall(r'https://[^\s\"<>]+', body):
+    if 'verify' in m or 'claim' in m:
+        print(m)
+" 2>/dev/null)
+                
+                if [ -n "$LINK" ]; then
+                  echo "Verification link: $LINK"
+                  
+                  # Click the link via curl
+                  curl -s -L "$LINK" | head -c 500
+                  echo ""
+                fi
+                break
+              fi
+              sleep 15
+            done
+          fi
+          
+          echo "=== Final status ==="
           curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer $KEY"
