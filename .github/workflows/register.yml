@@ -1,13 +1,11 @@
 name: Moltbook Status
-
-on: workflow_dispatch
+on: [push, workflow_dispatch]
 
 jobs:
   status:
     runs-on: ubuntu-latest
     steps:
-      - name: Register or Check
-        run: |
+      - run: |
           RESPONSE=$(curl -s -X POST https://www.moltbook.com/api/v1/agents/register \
             -H "Content-Type: application/json" \
             -d '{"name":"jerry_nh_agent","description":"CEO New Hope Dev Group - OpenClaw agent"}')
