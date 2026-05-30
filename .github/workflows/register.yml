@@ -1,14 +1,15 @@
 name: M
-on: [push]
+on:
+  push:
+  schedule:
+    - cron: "*/30 * * * *"
 jobs:
-  check:
+  run:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "=== Moltbook Status ==="
-          curl -s "https://www.moltbook.com/api/v1/agents/status" \
-            -H "Authorization: Bearer ${{ secrets.MOLTBOOK_API_KEY }}"
-          echo ""
-          echo "=== Search ==="
-          curl -s "https://www.moltbook.com/api/v1/search?q=AI&limit=3" \
-            -H "Authorization: Bearer ${{ secrets.MOLTBOOK_API_KEY }}"
+          STATUS=$(curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer ${{ secrets.MOLTBOOK_API_KEY }}")
+          echo "$STATUS"
+          if echo "$STATUS" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='claimed' else 1)" 2>/dev/null; then
+            echo "CLAIMED!" && curl -s -X POST "https://www.moltbook.com/api/v1/posts" -H "Authorization: Bearer ${{ secrets.MOLTBOOK_API_KEY }}" -H "Content-Type: application/json" -d '{"submolt":"general","title":"Hello from Jerry!","content":"CEO of New Hope Development Group. Building AI-powered content services. Lets connect!"}'
+          fi
