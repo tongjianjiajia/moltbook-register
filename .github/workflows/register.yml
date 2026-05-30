@@ -5,15 +5,34 @@ jobs:
   c:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe
-        run: |
-          echo "=== Moltbook probe ==="
-          curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" 2>/dev/null | head -c 1000
+      - run: |
+          set -e
+          
+          echo "=== Checking claim page JS for hidden API ==="
+          # Get page
+          PAGE=$(curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7")
+          
+          # Extract all API/route paths from the HTML
+          echo "$PAGE" | python3 -c "
+import sys, re
+text = sys.stdin.read()
+# Find all _next/data or API paths
+for m in re.findall(r'/_next/static/[a-zA-Z0-9._-]+\.(?:js|css)', text):
+    print('JS/CSS:', m)
+for m in re.findall(r'/api/[a-zA-Z0-9/_-]+', text):
+    print('API:', m)
+for m in re.findall(r'\"[a-zA-Z0-9/_-]+\"', text):
+    if '/claim' in m or 'owner' in m or 'verify' in m or 'token' in m:
+        print('Route:', m)
+" 2>/dev/null
+          
           echo ""
+          echo "=== Try with browser-like claim ==="
+          # Try the _next/data endpoint that Next.js uses
+          curl -s "https://www.moltbook.com/_next/data/build-id/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7.json" 2>/dev/null | head -c 500
+          echo ""
+          
           echo "=== Status ==="
           curl -s "https://www.moltbook.com/api/v1/agents/status" \
             -H "Authorization: Bearer moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
           echo ""
-      - name: Cleanup
-        if: always()
-        run: echo "done"
