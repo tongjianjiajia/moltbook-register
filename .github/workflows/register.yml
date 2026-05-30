@@ -1,10 +1,32 @@
 name: MC
 on: [push]
 jobs:
-  p:
+  c:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Analyze claim flow
-        run: |
-          python3 scripts/analyze_claim.py 2>&1
+      - run: |
+          KEY="${{ secrets.MOLTBOOK_API_KEY }}"
+          EMAIL="2864663178@qq.com"
+          T="moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7"
+          
+          echo "=== 1. Verify email ==="
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-email" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${EMAIL}\",\"claim_token\":\"${T}\"}"
+          echo ""
+          
+          echo "=== 2. With auth ==="
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-email" \
+            -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${EMAIL}\",\"claim_token\":\"${T}\"}"
+          echo ""
+          
+          echo "=== 3. Just email ==="
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/verify-email" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${EMAIL}\"}"
+          echo ""
+          
+          echo "=== 4. Status ==="
+          curl -s "https://www.moltbook.com/api/v1/agents/status" -H "Authorization: Bearer $KEY"
