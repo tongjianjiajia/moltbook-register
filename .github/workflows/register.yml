@@ -5,48 +5,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "=== Fetch claim page and extract JS ==="
-          PAGE=$(curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7")
-          
-          # Find all JS chunks
-          echo "$PAGE" | python3 -c "
+          echo "=== Fetch page ==="
+          curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" | python3 -c "
 import sys, re
 html = sys.stdin.read()
-# Find next.js data
-for m in re.findall(r'/_next/static/chunks/[a-zA-Z0-9._-]+\.js', html):
-    print('JS:', m)
-for m in re.findall(r'\"buildId\":\"([^\"]+)\"', html):
-    print('BuildID:', m)
-for m in re.findall(r'\"(claimToken|claim_token|token|code|ownerId)\":\"([^\"]+)\"', html):
-    print(m[0] + ':', m[1])
-" 2>/dev/null
-          
-          echo ""
-          echo "=== Try Next.js data endpoint ==="
-          BUILDID=$(echo "$PAGE" | python3 -c "import sys,re; m=re.search(r'\"buildId\":\"([^\"]+)\"', sys.stdin.read()); print(m.group(1) if m else 'unknown')" 2>/dev/null)
-          echo "BuildID: $BUILDID"
-          
-          curl -s "https://www.moltbook.com/_next/data/${BUILDID}/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7.json" 2>/dev/null | head -c 1000
-          echo ""
-          
-          echo "=== Search for API endpoints in JS ==="
-          JS_FILES=$(echo "$PAGE" | python3 -c "
-import sys, re
-for m in re.findall(r'_next/static/chunks/[a-zA-Z0-9._-]+\.js', sys.stdin.read()):
-    print(m)
-" 2>/dev/null | head -3)
-          
-          for js in $JS_FILES; do
-            echo "--- $js ---"
-            curl -s "https://www.moltbook.com/${js}" 2>/dev/null | python3 -c "
-import sys, re
-content = sys.stdin.read()
-# Find API paths
-for m in re.findall(r'[\"\\x27](/api/[a-zA-Z0-9/_-]+)[\"\\x27]', content):
-    print('  API:', m)
-for m in set(re.findall(r'[\"\\x27](/auth/[a-zA-Z0-9/_-]+)[\"\\x27]', content)):
-    print('  Auth:', m)
-for m in set(re.findall(r'[\"\\x27](/signup|/login|/register)[\"\\x27]', content)):
-    print('  Route:', m)
-" 2>/dev/null | head -20
-          done
+bd = re.search(r'\"buildId\":\"([^\"]+)\"', html)
+if bd: print('BUILD:' + bd.group(1))
+for m in re.findall(r'_next/static/chunks/[a-zA-Z0-9._-]+\.js', html):
+    print('JS:' + m)
+"
+      - run: |
+          echo "=== Fetch next data ==="
+          curl -s "https://www.moltbook.com/_next/data/nx/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7.json" 2>/dev/null | head -c 500
