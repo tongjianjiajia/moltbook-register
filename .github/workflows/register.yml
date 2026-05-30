@@ -1,39 +1,38 @@
-name: Probe Auth
+name: Email Verify
 on: [push]
 jobs:
   c:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "=== GET /napi/auth/session ==="
-          curl -s "https://www.moltbook.com/napi/auth/session"
+          # First get CSRF token and cookies
+          echo "=== Get CSRF ==="
+          CSRF_RESP=$(curl -s -c /tmp/cookies.txt "https://www.moltbook.com/napi/auth/csrf")
+          echo "CSRF: $CSRF_RESP"
+          
+          CSRF=$(echo "$CSRF_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('csrfToken',''))" 2>/dev/null)
+          echo "Token: $CSRF"
           
           echo ""
-          echo "=== POST /napi/auth with email ==="
-          curl -s -X POST "https://www.moltbook.com/napi/auth" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"tongjian1818@gmail.com"}'
-          
-          echo ""
-          echo "=== Try callback ==="
-          curl -s -X POST "https://www.moltbook.com/napi/auth/callback" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"tongjian1818@gmail.com"}'
-          
-          echo ""
-          echo "=== Try signin ==="
-          curl -s -X POST "https://www.moltbook.com/napi/auth/signin" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"tongjian1818@gmail.com"}'
-          
-          echo ""
-          echo "=== Try verify-email on napi ==="
+          echo "=== Verify email with full params ==="
           curl -s -X POST "https://www.moltbook.com/napi/auth/verify-email" \
+            -b /tmp/cookies.txt \
             -H "Content-Type: application/json" \
-            -d '{"email":"tongjian1818@gmail.com"}'
+            -d "{\"email\":\"tongjian1818@gmail.com\",\"csrfToken\":\"${CSRF}\"}"
           
           echo ""
-          echo "=== Help restore claim ==="
-          KEY="${{ secrets.MOLTBOOK_API_KEY }}"
-          curl -s "https://www.moltbook.com/api/v1/help/restore-claim" \
-            -H "Authorization: Bearer $KEY"
+          echo "=== Try signin with email (get magic link) ==="
+          curl -s -X POST "https://www.moltbook.com/napi/auth/signin/email" \
+            -c /tmp/cookies2.txt \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "email=tongjian1818@gmail.com&csrfToken=${CSRF}"
+          
+          echo ""
+          echo "=== Try callback URL ==="
+          curl -s -X POST "https://www.moltbook.com/napi/auth/callback/email" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"tongjian1818@gmail.com\",\"csrfToken\":\"${CSRF}\"}"
+          
+          echo ""
+          echo "=== Try signin providers ==="
+          curl -s "https://www.moltbook.com/napi/auth/providers"
