@@ -1,8 +1,39 @@
-name: Deep Analysis
+name: Probe Auth
 on: [push]
 jobs:
   c:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: python3 scripts/deep_analyze.py
+      - run: |
+          echo "=== GET /napi/auth/session ==="
+          curl -s "https://www.moltbook.com/napi/auth/session"
+          
+          echo ""
+          echo "=== POST /napi/auth with email ==="
+          curl -s -X POST "https://www.moltbook.com/napi/auth" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"tongjian1818@gmail.com"}'
+          
+          echo ""
+          echo "=== Try callback ==="
+          curl -s -X POST "https://www.moltbook.com/napi/auth/callback" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"tongjian1818@gmail.com"}'
+          
+          echo ""
+          echo "=== Try signin ==="
+          curl -s -X POST "https://www.moltbook.com/napi/auth/signin" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"tongjian1818@gmail.com"}'
+          
+          echo ""
+          echo "=== Try verify-email on napi ==="
+          curl -s -X POST "https://www.moltbook.com/napi/auth/verify-email" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"tongjian1818@gmail.com"}'
+          
+          echo ""
+          echo "=== Help restore claim ==="
+          KEY="${{ secrets.MOLTBOOK_API_KEY }}"
+          curl -s "https://www.moltbook.com/api/v1/help/restore-claim" \
+            -H "Authorization: Bearer $KEY"
