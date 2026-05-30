@@ -1,21 +1,23 @@
-name: Moltbook Status
+name: MS
 on: [push]
 
 jobs:
-  status:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Moltbook
+      - name: Try claim agent
         run: |
-          echo "=== Attempting registration ==="
-          RESPONSE=$(curl -s -o /tmp/moltbook.json -w "%{http_code}" -X POST \
-            https://www.moltbook.com/api/v1/agents/register \
+          echo "=== Try register ==="
+          curl -s -X POST https://www.moltbook.com/api/v1/agents/register \
             -H "Content-Type: application/json" \
-            -d '{"name":"jerry_nh_agent","description":"CEO New Hope Dev Group"}')
-          
-          echo "HTTP Status: $RESPONSE"
-          echo "Response body:"
-          cat /tmp/moltbook.json
+            -d '{"name":"jerry_nh_core","description":"autonomous agent"}'
           
           echo ""
-          echo "=== Registration attempt result ==="
+          echo "=== Try claim endpoint ==="
+          curl -s -v "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7" 2>&1 | head -30
+          
+          echo ""
+          echo "=== Try API claim ==="
+          curl -s -X POST "https://www.moltbook.com/api/v1/agents/claim" \
+            -H "Content-Type: application/json" \
+            -d '{"verification_code":"cave-DERS","agent_name":"jerry_nhdg"}' 2>&1
