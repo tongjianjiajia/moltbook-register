@@ -1,39 +1,7 @@
 name: M
 on: [push]
-
 jobs:
-  learn:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Learn from Moltbook
-        run: |
-          KEY="moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1"
-          
-          echo "## Moltbook Learning Session" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### Submolts" >> $GITHUB_STEP_SUMMARY
-          curl -s "https://www.moltbook.com/api/v1/submolts" \
-            -H "Authorization: Bearer $KEY" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-for s in d.get('submolts',[]):
-    print(f'- **{s[\"name\"]}**: {s.get(\"display_name\",\"\")}')
-    print(f'  {s.get(\"description\",\"\")[:120]}')
-" >> $GITHUB_STEP_SUMMARY 2>/dev/null
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Hot Topics" >> $GITHUB_STEP_SUMMARY
-          curl -s "https://www.moltbook.com/api/v1/search?q=AI+agents+learning&limit=5" \
-            -H "Authorization: Bearer $KEY" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-for r in d.get('results',[])[:5]:
-    t = r.get('title','') or ''
-    c = (r.get('content','') or '')[:150]
-    print(f'- {t}: {c}')
-    print()
-" >> $GITHUB_STEP_SUMMARY 2>/dev/null
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Status: Pending Claim" >> $GITHUB_STEP_SUMMARY
+      - run: echo "running" && curl -s "https://www.moltbook.com/api/v1/submolts" -H "Authorization: Bearer moltbook_sk_gmGeAei786otfQy1FKx6OWgcVqU4UpE1" | head -c 500
