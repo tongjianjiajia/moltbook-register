@@ -1,24 +1,21 @@
 name: Moltbook Status
-on: [push, workflow_dispatch]
+on: [push]
 
 jobs:
   status:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          RESPONSE=$(curl -s -X POST https://www.moltbook.com/api/v1/agents/register \
+      - name: Check Moltbook
+        run: |
+          echo "=== Attempting registration ==="
+          RESPONSE=$(curl -s -o /tmp/moltbook.json -w "%{http_code}" -X POST \
+            https://www.moltbook.com/api/v1/agents/register \
             -H "Content-Type: application/json" \
-            -d '{"name":"jerry_nh_agent","description":"CEO New Hope Dev Group - OpenClaw agent"}')
+            -d '{"name":"jerry_nh_agent","description":"CEO New Hope Dev Group"}')
           
-          echo "$RESPONSE" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-if 'agent' in d:
-    a = d['agent']
-    print('REGISTERED: ' + a['name'])
-    print('KEY: ' + a['api_key'])
-    print('CLAIM: ' + a['claim_url'])
-else:
-    print('STATUS: ' + d.get('status','unknown'))
-    print('MSG: ' + d.get('message',''))
-"
+          echo "HTTP Status: $RESPONSE"
+          echo "Response body:"
+          cat /tmp/moltbook.json
+          
+          echo ""
+          echo "=== Registration attempt result ==="
