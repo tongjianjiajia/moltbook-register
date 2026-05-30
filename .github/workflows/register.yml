@@ -4,19 +4,7 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          PAGE=$(curl -s "https://www.moltbook.com/claim/moltbook_claim_2mPPz0dgsjHATHX95apf6Ku3H1kXu0p7")
-          echo "$PAGE" > /tmp/page.html
-          grep -oP '_next/static/chunks/\K[^"'"'"' ]+' /tmp/page.html | sort -u | head -20 > /tmp/js_files.txt
-          
-          echo "=== Searching for auth/supabase URLs in JS ==="
-          while read js; do
-            curl -s "https://www.moltbook.com/_next/static/chunks/$js" 2>/dev/null | grep -oP '(https?://[a-zA-Z0-9.-]+supabase[a-zA-Z0-9./_-]+|https?://[a-zA-Z0-9.-]+\.supabase\.co[^"'"'"']*)' | sort -u || true
-          done < /tmp/js_files.txt
-          
-          echo "=== Searching for auth endpoints ==="
-          while read js; do
-            content=$(curl -s "https://www.moltbook.com/_next/static/chunks/$js" 2>/dev/null)
-            echo "$content" | grep -oP '"(/api/v1/auth/[^"]+)"' | sort -u || true
-            echo "$content" | grep -oP "'(/api/v1/auth/[^']+)'" | sort -u || true
-          done < /tmp/js_files.txt
+      - uses: actions/checkout@v4
+      - name: Analyze claim flow
+        run: |
+          python3 scripts/analyze_claim.py 2>&1
